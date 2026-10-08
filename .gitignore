@@ -1,0 +1,33 @@
+# Variables de entorno y credenciales
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencias
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Archivos generados
+dist/
+build/
+coverage/
+.pytest_cache/
+*.log
+
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
+*~
+*.swp
+
+# Archivos locales del editor
+.vscode/
+.idea/
+
+# Estado local de ejecución de agentes
+.agents/state/
