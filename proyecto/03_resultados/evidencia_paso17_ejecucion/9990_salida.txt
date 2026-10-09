@@ -1,0 +1,23 @@
+esperado_8_0_46
+8.0.46-0ubuntu0.24.04.4
+sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+schema_en_uso
+gestion_citas_db
+ERROR 3819 (HY000) at line 46: Check constraint 'chk_t7_duracion_coherencia' is violated.
+ERROR 1062 (23000) at line 59: Duplicate entry '990001|2026-03-02|bloqueo|D|D' for key 'excepcion_disponibilidad.uq_t6_e2'
+ERROR 1062 (23000) at line 65: Duplicate entry '990001|2026-03-03|ausencia|09:00:00|13:00:00' for key 'excepcion_disponibilidad.uq_t6_e2'
+ERROR 3819 (HY000) at line 79: Check constraint 'chk_t7_estado' is violated.
+ERROR 3819 (HY000) at line 85: Check constraint 'chk_t6_horas' is violated.
+ERROR 3819 (HY000) at line 88: Check constraint 'chk_t12_ttl' is violated.
+ERROR 1062 (23000) at line 98: Duplicate entry 'probe:idem:c4' for key 'clave_idempotencia.PRIMARY'
+tablas_esperado_14
+14
+fk_esperado_18
+18
+chk_esperado_27_mas_1_si_0004
+28
+INDEX_NAME
+uq_t6_e2
+filas_probe_t15_tras_rollback
+0

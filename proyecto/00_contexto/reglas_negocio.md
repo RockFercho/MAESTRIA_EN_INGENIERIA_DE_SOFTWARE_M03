@@ -7,7 +7,9 @@
   disponible para todo el intervalo solicitado.
 
 - RN-03. Un profesional no podrá mantener dos citas activas cuyos intervalos
-  de atención se solapen total o parcialmente.
+  de atención se solapen total o parcialmente. A estos efectos, se consideran
+  activas las citas en estado Confirmada o En atención; los estados Atendida,
+  Cancelada y No asistida no reservan tiempo del profesional.
 
 - RN-04. Cada servicio tendrá una duración general configurable por el
   administrador. Podrá definirse una duración específica para una
@@ -50,14 +52,17 @@
   durante la operación normal del sistema.
 
 - RN-12. Las reglas relacionadas con anticipación mínima para reservar,
-  reprogramar o cancelar deberán poder definirse mediante parámetros
-  operativos.
+  reprogramar o cancelar se definirán mediante tres parámetros operativos
+  independientes —uno por operación—, configurables por el administrador.
+  No se asumirán valores definitivos sin aprobación humana.
 
 - RN-13. Solo podrán reprogramarse o cancelarse citas en estado Confirmada
-  que cumplan el plazo mínimo de anticipación configurado. El valor inicial
-  del plazo mínimo será de 2 horas y podrá modificarse mediante parámetros
-  del sistema. Las citas en cualquier otro estado no podrán reprogramarse
-  ni cancelarse.
+  que cumplan el plazo mínimo de anticipación de la operación correspondiente.
+  El valor inicial aprobado para reprogramar y cancelar será de 2 horas y
+  podrá modificarse mediante parámetros del sistema; el valor del parámetro
+  de anticipación para reservar deberá ser aprobado por el responsable del
+  proyecto antes de activarse. Las citas en cualquier otro estado no podrán
+  reprogramarse ni cancelarse.
 
 - RN-14. El solicitante podrá reprogramar o cancelar sus propias citas, el
   profesional las citas que tiene asignadas y el administrador las citas de
@@ -71,3 +76,10 @@
 
 - RN-15. Los horarios recurrentes y sus excepciones se interpretarán según
   la zona horaria institucional America/La_Paz.
+
+- RN-16. Toda cita deberá corresponder a una asociación profesional-servicio
+  válida y activa al momento de su creación y de su reprogramación,
+  respetando las políticas de integridad e historial del sistema. La
+  desactivación posterior de la asociación no invalidará ni alterará
+  automáticamente las citas históricas, conservándose la trazabilidad de la
+  asociación utilizada.

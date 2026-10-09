@@ -23,17 +23,17 @@
 | **Usuario** | nombre completo, correo (único), contraseña hasheada, rol (solicitante/profesional/administrador), estado | RF-001..003, RF-029, RNF-002/029, CA-001 |
 | **Profesional** | vínculo con usuario, datos profesionales, estado activo/inactivo; desactivación conserva historial | RF-004, RN-11 |
 | **Servicio** | nombre, descripción, duración general (minutos, configurable) | RF-005, RN-04 |
-| **Asociación profesional–servicio** | profesional, servicio, duración específica opcional (prioridad sobre la general) | RF-006, RN-04, CA-002 |
+| **Asociación profesional–servicio** | profesional, servicio, duración específica opcional (prioridad sobre la general), estado activo/inactivo | RF-006, RN-04, RN-16, CA-002 |
 | **Horario habitual de atención** | profesional, día de semana, hora inicio/fin | RF-007, RN-05 |
 | **Excepción de disponibilidad** | profesional, fecha/rango, tipo (ausencia, feriado, bloqueo) | RF-008, RN-05 |
 | **Cita** | solicitante, profesional, servicio, inicio/fin (UTC), estado (Confirmada/En atención/Atendida/Cancelada/No asistida), duración efectiva reservada, justificación opcional de cambio fuera de plazo | RF-012..020, RN-01..RN-08, RN-13/RN-14, RNF-028 |
 | **Historial de cambios de cita** | cita, estado anterior, estado nuevo (o campo cambiado en reprogramación), fecha, usuario responsable, justificación | RF-021/022, RN-08/RN-10, CA-006 |
 | **Auditoría de operaciones críticas** | operación (reserva/reprogramación/cancelación), usuario, fecha, resultado, contexto | RF-026, RNF-013/026, CA-006 |
-| **Notificación interna** | usuario destinatario, cita, evento, datos actualizados, fecha de generación, estado de lectura | RF-024, RF-028, RNF-017, CA-012 |
-| **Parámetro operativo** | clave-valor de políticas (anticipación mínima, valor inicial 2 h) | RF-025, RN-12, RN-13 |
+| **Notificación interna** | usuario destinatario, cita, evento, datos actualizados, fecha de generación (sin estado de lectura: fuera de alcance, OD-03) | RF-024, RF-028, RNF-017, CA-012 |
+| **Parámetro operativo** | tres parámetros independientes de anticipación mínima —reservar, reprogramar, cancelar— configurables por el administrador; valores iniciales aprobados: 2 h para reprogramar y cancelar; para reservar, sin valor hasta aprobación humana | RF-025, RN-12, RN-13, CA-004, CA-005 |
 | **Clave de idempotencia** | clave del cliente, resultado de la operación, fecha | RNF-012, CA-007 |
 | **Outbox de eventos** | evento (cita confirmada/reprogramada/cancelada), carga, estado de procesamiento | RNF-017, CA-012 |
-| **Registro de restablecimiento de contraseña** | usuario, marca temporal, estado (sin contraseña visible) | RF-029, RNF-029 |
+| **Registro de restablecimiento de contraseña** | usuario, contraseña temporal de un solo uso (solo hash), caducidad configurable, estado de uso, marca de cambio obligatorio, referencia de auditoría; la contraseña original nunca es visible o recuperable | RF-029, RNF-030, CA-015 |
 
 ## 3. Reglas de integridad derivadas (para fases posteriores)
 
@@ -42,7 +42,8 @@
 - **RN-04:** duración efectiva = duración específica (profesional-servicio) si existe, si no duración general; las citas conservan su duración al reservarse → persistir la duración efectiva en la cita.
 - **RN-06:** cancelación libera el intervalo → el bloqueo depende del estado de la cita, no de borrado.
 - **RN-08/RN-11:** máquina de estados; historial append-only; **sin borrado físico** de citas en estados finales → ON DELETE restringido en catálogo con citas asociadas.
-- **RN-13/RN-14:** elegibilidad y permisos; justificación obligatoria fuera de plazo.
+- **RN-12/RN-13/RN-14:** tres parámetros de anticipación mínima independientes (reservar/reprogramar/cancelar); elegibilidad y permisos; justificación obligatoria fuera de plazo.
+- **RN-16:** toda cita corresponde a una asociación profesional-servicio válida y activa al momento de crearla y de reprogramarla (RF-012, RF-014, RF-017, CA-003, CA-004).
 - **RNF-012:** clave de idempotencia con restricción única.
 - **RNF-028/RN-15:** almacén en UTC; interpretación de recurrencias en `America/La_Paz`.
 - Correo de usuario único (CA-001); contraseñas nunca en texto plano (RNF-002).
@@ -76,6 +77,14 @@ Perfil **OLTP**, normalización a 3NF como punto de partida (Paso 05).
 
 - **Motor de BD no seleccionado** (Paso 06, `seleccion_dbms.md`): este documento es agnóstico del motor.
 - Técnica de exclusión de solapamientos, diseño de índices y estrategia de concurrencia se definen en los Pasos 11 y 12.
+- **Valor del parámetro de anticipación mínima para reservar:** pendiente de aprobación humana (OD-01); no asumir valores.
+- **Canal seguro de entrega de la contraseña temporal** (RF-029/RNF-030): debe definirse antes de la implementación (OD-02).
 - No se han creado entidades ni tablas: el modelo conceptual corresponde al Paso 02.
 
-**Estado del paso:** completado. **HUMAN_STATUS: PENDING** (revisión humana antes del Paso 02).
+## 8. Registro de la revisión del Paso 01
+
+- Revisión de consistencia inicial → observaciones OD-01…OD-04, aprobadas por decisión humana (ver `proyecto/04_decisiones/decisiones_revision_pas01.md`).
+- OD-01 (opción B): tres parámetros independientes de anticipación; OD-02: mecanismo de restablecimiento con contraseña temporal de un solo uso; OD-03 (opción B): eliminado el estado de lectura de notificaciones; OD-04 (opción C): nueva RN-16 de asociación profesional-servicio activa.
+- Versión previa a estos cambios preservada en `proyecto/03_resultados/evidencia_pre_od01_04/`.
+
+**Estado del paso:** completado y revisado tras OD-01…OD-04. **HUMAN_STATUS: PENDING** (aprobación final del Paso 01 antes del Paso 02).

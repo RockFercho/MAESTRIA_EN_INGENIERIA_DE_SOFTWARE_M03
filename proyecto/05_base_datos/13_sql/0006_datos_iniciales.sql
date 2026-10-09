@@ -1,0 +1,30 @@
+-- =============================================================================
+-- Paso 15 (autorizado 2026-10-09) — Unidad 0006: Datos iniciales
+-- Estado: SIN FILAS SEMILLA EJECUTABLES (intencional):
+--   * T11: valores aprobados sólo para reprogramar (2 h) y cancelar (2 h)
+--     (CA-003/CA-004/RN-12). `anticipacion_minima_reservar` sin valor aprobado
+--     → OD-01 PENDIENTE (RF-025): no insertar, no asumir.
+--   * Cada fila T11 exige `modificado_por` → FK a un usuario administrador
+--     existente. No existe semilla de administradores (credenciales: Paso 16/17,
+--     fuera del repositorio — RNF-004) → los INSERT se dejan preparados.
+--   * T12 sin semilla (ER-02); T9 tipo_operacion es catálogo L-04 sin CHECK y
+--     sin filas (extensible sin DDL); catálogos de estado viven en las CHK de 0001.
+-- EJECUCIÓN: requiere aprobación humana explícita + id de administrador real.
+-- NO EJECUTAR aún (etapa de ejecución = Paso 17, con autorización).
+-- =============================================================================
+-- Con @admin_id := <id del usuario administrador creado en el entorno>:
+--
+-- INSERT INTO parametro_operativo (clave, valor, descripcion, modificado_por, modificado_utc)
+-- VALUES
+--   ('anticipacion_minima_reprogramar', '2h',
+--    'Plazo minimo de anticipacion para reprogramar (RF-025 / CA-003)',
+--    @admin_id, UTC_TIMESTAMP(3)),
+--   ('anticipacion_minima_cancelar', '2h',
+--    'Plazo minimo de anticipacion para cancelar (RF-025 / CA-004)',
+--    @admin_id, UTC_TIMESTAMP(3));
+--
+-- -- OD-01 (valor de anticipacion para RESERVAR) se añadirá como unidad 0007+
+-- -- una vez aprobado por el responsable del proyecto.
+--
+-- Verificación de estado vacío:
+SELECT COUNT(*) AS filas_parametros FROM parametro_operativo;

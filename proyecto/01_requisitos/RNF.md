@@ -57,3 +57,4 @@
 ### Autenticación y gestión de contraseñas
 
 - RNF-029. Las contraseñas deberán tener una longitud mínima de 12 caracteres y admitir frases de contraseña, sin exigir reglas arbitrarias de composición, rechazando las contraseñas comunes o comprometidas cuando sea viable. El inicio de sesión incorporará limitación de intentos y mensajes de error genéricos.
+- RNF-030. El restablecimiento administrativo de contraseñas deberá utilizar una contraseña temporal segura de un solo uso, con caducidad configurable, almacenada exclusivamente como hash seguro, obligatoria a cambiar en el primer inicio de sesión y entregada mediante un canal seguro definido previamente a la implementación, dejando registro de auditoría. El sistema no permitirá visualizar ni recuperar contraseñas existentes.
