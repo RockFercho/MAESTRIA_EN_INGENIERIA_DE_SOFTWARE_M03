@@ -1,0 +1,380 @@
+
+> sistema-citas-backend@0.1.0 test
+> node --test
+
+TAP version 13
+# Subtest: test/helpers/app-completa.js
+ok 1 - test/helpers/app-completa.js
+  ---
+  duration_ms: 1495.521861
+  ...
+# Subtest: login con credenciales válidas devuelve token y usuario seguro (sin hash)
+ok 2 - login con credenciales válidas devuelve token y usuario seguro (sin hash)
+  ---
+  duration_ms: 798.674231
+  ...
+# Subtest: login con credenciales inválidas responde 401 con mensaje genérico (mismo mensaje para correo inexistente)
+ok 3 - login con credenciales inválidas responde 401 con mensaje genérico (mismo mensaje para correo inexistente)
+  ---
+  duration_ms: 809.103182
+  ...
+# Subtest: login rechaza usuario inactivo con el mismo mensaje genérico
+ok 4 - login rechaza usuario inactivo con el mismo mensaje genérico
+  ---
+  duration_ms: 938.444546
+  ...
+# Subtest: login con cuerpo inválido responde 400
+ok 5 - login con cuerpo inválido responde 400
+  ---
+  duration_ms: 645.592341
+  ...
+# Subtest: login limita intentos fallidos consecutivos (429) y se recupera tras el éxito
+ok 6 - login limita intentos fallidos consecutivos (429) y se recupera tras el éxito
+  ---
+  duration_ms: 1347.750983
+  ...
+# Subtest: GET /auth/me devuelve el usuario de la sesión o 401 sin token
+ok 7 - GET /auth/me devuelve el usuario de la sesión o 401 sin token
+  ---
+  duration_ms: 817.054463
+  ...
+# Subtest: POST /auth/logout revoca la sesión (401 posterior)
+ok 8 - POST /auth/logout revoca la sesión (401 posterior)
+  ---
+  duration_ms: 703.888659
+  ...
+# Subtest: token basura responde 401 en /me
+ok 9 - token basura responde 401 en /me
+  ---
+  duration_ms: 325.489965
+  ...
+# Subtest: GET listado y detalle siguen públicos (RF-027) sin token
+ok 10 - GET listado y detalle siguen públicos (RF-027) sin token
+  ---
+  duration_ms: 358.544137
+  ...
+# Subtest: mutaciones sin token responden 401 UNAUTHORIZED
+ok 11 - mutaciones sin token responden 401 UNAUTHORIZED
+  ---
+  duration_ms: 381.44579
+  ...
+# Subtest: mutaciones con rol solicitante responden 403 FORBIDDEN (RF-003)
+ok 12 - mutaciones con rol solicitante responden 403 FORBIDDEN (RF-003)
+  ---
+  duration_ms: 678.885215
+  ...
+# Subtest: administrador puede crear, actualizar y desactivar servicios (RF-005)
+ok 13 - administrador puede crear, actualizar y desactivar servicios (RF-005)
+  ---
+  duration_ms: 465.246302
+  ...
+# Subtest: flujo completo CP-FULL-02..09: registro, reserva idempotente, disponibilidad, reprogramar, cancelar, estados, notificaciones y auditoría
+ok 14 - flujo completo CP-FULL-02..09: registro, reserva idempotente, disponibilidad, reprogramar, cancelar, estados, notificaciones y auditoría
+  ---
+  duration_ms: 1933.47331
+  ...
+# Subtest: política de anticipación para reservar: sin parámetro aprobado no se aceptan reservas en línea (RF-025/RN-12)
+ok 15 - política de anticipación para reservar: sin parámetro aprobado no se aceptan reservas en línea (RF-025/RN-12)
+  ---
+  duration_ms: 807.291974
+  ...
+# Subtest: plazo de reprogramación/cancelación: solicitante fuera de plazo rechazado; administrador con justificación permitido (RN-13/14)
+ok 16 - plazo de reprogramación/cancelación: solicitante fuera de plazo rechazado; administrador con justificación permitido (RN-13/14)
+  ---
+  duration_ms: 966.692705
+  ...
+# Subtest: GET /api/v1/health responde 200 con db=ok cuando el ping funciona
+ok 17 - GET /api/v1/health responde 200 con db=ok cuando el ping funciona
+  ---
+  duration_ms: 88.203171
+  ...
+# Subtest: GET /api/v1/health responde 503 con db=error cuando el ping falla
+ok 18 - GET /api/v1/health responde 503 con db=error cuando el ping falla
+  ---
+  duration_ms: 44.694791
+  ...
+# Subtest: ruta desconocida responde 404 con error normalizado
+ok 19 - ruta desconocida responde 404 con error normalizado
+  ---
+  duration_ms: 40.207834
+  ...
+# Subtest: GET /api/v1/servicios devuelve 200 con la lista completa
+ok 20 - GET /api/v1/servicios devuelve 200 con la lista completa
+  ---
+  duration_ms: 126.895988
+  ...
+# Subtest: GET /api/v1/servicios?estado=activo filtra correctamente
+ok 21 - GET /api/v1/servicios?estado=activo filtra correctamente
+  ---
+  duration_ms: 40.8072
+  ...
+# Subtest: GET /api/v1/servicios devuelve [] con repositorio vacío
+ok 22 - GET /api/v1/servicios devuelve [] con repositorio vacío
+  ---
+  duration_ms: 33.658914
+  ...
+# Subtest: GET /api/v1/servicios?estado=invalido responde 400 VALIDATION_ERROR
+ok 23 - GET /api/v1/servicios?estado=invalido responde 400 VALIDATION_ERROR
+  ---
+  duration_ms: 15.006012
+  ...
+# Subtest: error de repositorio DB responde 500 DB_ERROR sin filtrar SQL
+ok 24 - error de repositorio DB responde 500 DB_ERROR sin filtrar SQL
+  ---
+  duration_ms: 14.914506
+  ...
+# [error] error no controlado: SELECT * FROM secreto
+# Subtest: error inesperado responde 500 INTERNAL_ERROR genérico
+ok 25 - error inesperado responde 500 INTERNAL_ERROR genérico
+  ---
+  duration_ms: 15.060174
+  ...
+# Subtest: GET /api/v1/servicios/:id devuelve 200 con el servicio existente
+ok 26 - GET /api/v1/servicios/:id devuelve 200 con el servicio existente
+  ---
+  duration_ms: 12.950173
+  ...
+# Subtest: GET /api/v1/servicios/:id responde 404 si no existe
+ok 27 - GET /api/v1/servicios/:id responde 404 si no existe
+  ---
+  duration_ms: 34.00875
+  ...
+# Subtest: GET /api/v1/servicios/:id responde 400 si el id no es entero
+ok 28 - GET /api/v1/servicios/:id responde 400 si el id no es entero
+  ---
+  duration_ms: 105.0679
+  ...
+# Subtest: POST /api/v1/servicios crea un servicio y responde 201
+ok 29 - POST /api/v1/servicios crea un servicio y responde 201
+  ---
+  duration_ms: 94.63133
+  ...
+# Subtest: POST /api/v1/servicios acepta payload mínimo (sin descripcion/estado)
+ok 30 - POST /api/v1/servicios acepta payload mínimo (sin descripcion/estado)
+  ---
+  duration_ms: 15.236259
+  ...
+# Subtest: POST /api/v1/servicios valida entradas inválidas (400) sin crear filas
+ok 31 - POST /api/v1/servicios valida entradas inválidas (400) sin crear filas
+  ---
+  duration_ms: 58.21588
+  ...
+# Subtest: POST con JSON malformado responde 400 VALIDATION_ERROR
+ok 32 - POST con JSON malformado responde 400 VALIDATION_ERROR
+  ---
+  duration_ms: 12.95
+  ...
+# Subtest: PUT /api/v1/servicios/:id actualiza el servicio y responde 200
+ok 33 - PUT /api/v1/servicios/:id actualiza el servicio y responde 200
+  ---
+  duration_ms: 9.633896
+  ...
+# Subtest: PUT /api/v1/servicios/:id responde 404 si no existe
+ok 34 - PUT /api/v1/servicios/:id responde 404 si no existe
+  ---
+  duration_ms: 22.236653
+  ...
+# Subtest: PUT /api/v1/servicios/:id responde 400 con payload inválido
+ok 35 - PUT /api/v1/servicios/:id responde 400 con payload inválido
+  ---
+  duration_ms: 31.978163
+  ...
+# Subtest: PUT /api/v1/servicios/abc responde 400 (id inválido)
+ok 36 - PUT /api/v1/servicios/abc responde 400 (id inválido)
+  ---
+  duration_ms: 27.370105
+  ...
+# Subtest: DELETE /api/v1/servicios/:id desactiva lógicamente (estado inactivo)
+ok 37 - DELETE /api/v1/servicios/:id desactiva lógicamente (estado inactivo)
+  ---
+  duration_ms: 35.801639
+  ...
+# Subtest: DELETE dos veces responde 200 (idempotente lógico)
+ok 38 - DELETE dos veces responde 200 (idempotente lógico)
+  ---
+  duration_ms: 24.493801
+  ...
+# Subtest: DELETE responde 404 si no existe y 400 si el id es inválido
+ok 39 - DELETE responde 404 si no existe y 400 si el id es inválido
+  ---
+  duration_ms: 19.166141
+  ...
+# Subtest: CRUD de usuarios y profesionales por administrador (RF-004/RF-005) con control de acceso 401/403
+ok 40 - CRUD de usuarios y profesionales por administrador (RF-004/RF-005) con control de acceso 401/403
+  ---
+  duration_ms: 1695.142026
+  ...
+# Subtest: intervalosDisponibles respeta horario, paso de 15 min y duración (RF-009..011)
+ok 41 - intervalosDisponibles respeta horario, paso de 15 min y duración (RF-009..011)
+  ---
+  duration_ms: 29.928288
+  ...
+# Subtest: excepciones de día completo y por intervalo bloquean slots (RF-008, RN-15)
+ok 42 - excepciones de día completo y por intervalo bloquean slots (RF-008, RN-15)
+  ---
+  duration_ms: 1.582893
+  ...
+# Subtest: citas Confirmada y En atención ocupan; Cancelada libera el intervalo (RN-06)
+ok 43 - citas Confirmada y En atención ocupan; Cancelada libera el intervalo (RN-06)
+  ---
+  duration_ms: 9.412239
+  ...
+# Subtest: zona horaria La Paz: sabado usa clave "sab" y conversión UTC-4 consistente (RN-15)
+ok 44 - zona horaria La Paz: sabado usa clave "sab" y conversión UTC-4 consistente (RN-15)
+  ---
+  duration_ms: 13.390524
+  ...
+# Subtest: parseEstadoQuery acepta undefined y vacío
+ok 45 - parseEstadoQuery acepta undefined y vacío
+  ---
+  duration_ms: 3.397867
+  ...
+# Subtest: parseEstadoQuery acepta activo e inactivo
+ok 46 - parseEstadoQuery acepta activo e inactivo
+  ---
+  duration_ms: 0.750515
+  ...
+# Subtest: parseEstadoQuery rechaza valores inválidos con ValidationError 400
+ok 47 - parseEstadoQuery rechaza valores inválidos con ValidationError 400
+  ---
+  duration_ms: 1.963892
+  ...
+# Subtest: toServicio mapea sólo las 5 columnas de servicio
+ok 48 - toServicio mapea sólo las 5 columnas de servicio
+  ---
+  duration_ms: 4.035062
+  ...
+# Subtest: listarServicios devuelve la lista completa sin filtro
+ok 49 - listarServicios devuelve la lista completa sin filtro
+  ---
+  duration_ms: 2.019691
+  ...
+# Subtest: listarServicios filtra por estado
+ok 50 - listarServicios filtra por estado
+  ---
+  duration_ms: 1.37786
+  ...
+# Subtest: listarServicios devuelve [] en repositorio vacío
+ok 51 - listarServicios devuelve [] en repositorio vacío
+  ---
+  duration_ms: 0.719266
+  ...
+# Subtest: listarServicios propaga el error del repositorio (sin enmascarar)
+ok 52 - listarServicios propaga el error del repositorio (sin enmascarar)
+  ---
+  duration_ms: 1.282935
+  ...
+# Subtest: obtenerServicio devuelve el servicio o null
+ok 53 - obtenerServicio devuelve el servicio o null
+  ---
+  duration_ms: 7.259417
+  ...
+# Subtest: crearServicio persiste y devuelve el servicio con id
+ok 54 - crearServicio persiste y devuelve el servicio con id
+  ---
+  duration_ms: 2.103157
+  ...
+# Subtest: actualizarServicio modifica o devuelve null
+ok 55 - actualizarServicio modifica o devuelve null
+  ---
+  duration_ms: 1.924222
+  ...
+# Subtest: desactivarServicio cambia estado a inactivo sin eliminar la fila
+ok 56 - desactivarServicio cambia estado a inactivo sin eliminar la fila
+  ---
+  duration_ms: 2.366829
+  ...
+# Subtest: parseIdParam acepta enteros positivos
+ok 57 - parseIdParam acepta enteros positivos
+  ---
+  duration_ms: 2.982137
+  ...
+# Subtest: parseIdParam rechaza no enteros/negativos/cadenas vacías
+ok 58 - parseIdParam rechaza no enteros/negativos/cadenas vacías
+  ---
+  duration_ms: 1.841323
+  ...
+# Subtest: parseCrearServicioBody acepta payload completo y mínimo
+ok 59 - parseCrearServicioBody acepta payload completo y mínimo
+  ---
+  duration_ms: 3.28994
+  ...
+# Subtest: parseCrearServicioBody rechaza payloads inválidos
+ok 60 - parseCrearServicioBody rechaza payloads inválidos
+  ---
+  duration_ms: 2.056575
+  ...
+# Subtest: parseActualizarServicioBody aplica las mismas reglas (PUT completo)
+ok 61 - parseActualizarServicioBody aplica las mismas reglas (PUT completo)
+  ---
+  duration_ms: 0.760936
+  ...
+# Subtest: parseCrearServicioBody recorta espacios del nombre
+ok 62 - parseCrearServicioBody recorta espacios del nombre
+  ---
+  duration_ms: 0.413947
+  ...
+# Subtest: parseLoginBody normaliza correo y valida campos
+ok 63 - parseLoginBody normaliza correo y valida campos
+  ---
+  duration_ms: 5.760245
+  ...
+# Subtest: SesionStoreEnMemoria crea, obtiene, expira y revoca
+ok 64 - SesionStoreEnMemoria crea, obtiene, expira y revoca
+  ---
+  duration_ms: 1.564074
+  ...
+# Subtest: SesionStoreEnMemoria expira la sesión tras el TTL
+ok 65 - SesionStoreEnMemoria expira la sesión tras el TTL
+  ---
+  duration_ms: 26.351171
+  ...
+# Subtest: LoginRateLimiterEnMemoria bloquea tras el máximo de fallos y limpia con el éxito
+ok 66 - LoginRateLimiterEnMemoria bloquea tras el máximo de fallos y limpia con el éxito
+  ---
+  duration_ms: 4.676604
+  ...
+# Subtest: hashPassword genera formato scrypt con sal (sin texto plano)
+ok 67 - hashPassword genera formato scrypt con sal (sin texto plano)
+  ---
+  duration_ms: 253.705869
+  ...
+# Subtest: verifyPassword valida la contraseña correcta y rechaza la incorrecta
+ok 68 - verifyPassword valida la contraseña correcta y rechaza la incorrecta
+  ---
+  duration_ms: 574.149403
+  ...
+# Subtest: passwordSeguraValida exige 12–200 caracteres (RNF-029)
+ok 69 - passwordSeguraValida exige 12–200 caracteres (RNF-029)
+  ---
+  duration_ms: 0.534763
+  ...
+# Subtest: ahoraUtcMysql produce marca UTC con milisegundos
+ok 70 - ahoraUtcMysql produce marca UTC con milisegundos
+  ---
+  duration_ms: 0.854207
+  ...
+# Subtest: máquina de estados RN-08: solo transiciones permitidas
+ok 71 - máquina de estados RN-08: solo transiciones permitidas
+  ---
+  duration_ms: 3.027205
+  ...
+# Subtest: parseReservaBody valida fecha, hora e identificadores
+ok 72 - parseReservaBody valida fecha, hora e identificadores
+  ---
+  duration_ms: 2.252496
+  ...
+# Subtest: puedeModificarCita aplica propiedad por rol (RN-14); profesional compara por id de perfil, no de usuario
+ok 73 - puedeModificarCita aplica propiedad por rol (RN-14); profesional compara por id de perfil, no de usuario
+  ---
+  duration_ms: 0.58151
+  ...
+1..73
+# tests 73
+# suites 0
+# pass 73
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9923.035404

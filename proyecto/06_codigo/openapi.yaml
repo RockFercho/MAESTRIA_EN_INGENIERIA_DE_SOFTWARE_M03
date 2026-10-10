@@ -1,0 +1,1074 @@
+openapi: 3.1.0
+info:
+  title: API — Sistema Web de Gestión de Citas y Atención Virtual
+  version: 1.0.0
+  description: >
+    API REST del backend completo. Node.js 22 + Express 4 + mysql2 (pool) +
+    node:test, arquitectura hexagonal (ADR-001), base de datos
+    `gestion_citas_db` sin migraciones. Autenticación por sesión opaca con token
+    Bearer; autorización por rol (`solicitante`, `profesional`,
+    `administrador`). Huso horario de negocio: La Paz, UTC-4. Toda operación de
+    reserva, reprogramación y cancelación exige la cabecera `Idempotency-Key`
+    (RNF-012) y deja registro en auditoría (RF-026).
+servers:
+  - url: http://127.0.0.1:3001
+    description: Entorno local
+security:
+  - bearerAuth: []
+tags:
+  - { name: auth, description: Autenticación y sesión }
+  - { name: catalogo, description: Servicios }
+  - { name: identidad, description: Usuarios, profesionales, agenda }
+  - { name: agenda, description: Disponibilidad }
+  - { name: reservas, description: Citas }
+  - { name: seguimiento, description: Notificaciones, parámetros y auditoría }
+paths:
+  /api/v1/health:
+    get:
+      tags: [auth]
+      operationId: health
+      summary: Estado de la aplicación y del pool MySQL
+      security: []
+      responses:
+        '200':
+          description: Aplicación y base de datos disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version, checks]
+                properties:
+                  status: { type: string, enum: [ok] }
+                  version: { type: string }
+                  checks: { type: object, properties: { db: { type: string, enum: [ok] } } }
+        '503':
+          description: Base de datos no disponible
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [error] }
+                  checks: { type: object, properties: { db: { type: string, enum: [error] } } }
+  /api/v1/auth/registro:
+    post:
+      tags: [auth]
+      operationId: registrarSolicitante
+      summary: Registro público de solicitante (RF-001)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegistroPublico' }
+      responses:
+        '201':
+          description: Cuenta creada con rol solicitante
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsuarioSeguro' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '409':
+          description: Correo ya registrado (CONFLICTO_NEGOCIO)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Autenticación (sesión opaca; límite de intentos; mensaje genérico)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CredencialesLogin' }
+      responses:
+        '200':
+          description: Sesión creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SesionLogin' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401':
+          description: Credenciales inválidas (mensaje genérico)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Demasiados intentos fallidos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Revoca la sesión actual
+      responses:
+        '200': { description: Sesión finalizada }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+  /api/v1/auth/me:
+    get:
+      tags: [auth]
+      operationId: obtenerSesionActual
+      summary: Devuelve el usuario autenticado
+      responses:
+        '200':
+          description: Usuario de la sesión
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsuarioSeguro' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+  /api/v1/servicios:
+    get:
+      tags: [catalogo]
+      operationId: listarServicios
+      summary: Lista servicios, con filtro opcional por estado (público, RF-027)
+      security: []
+      parameters:
+        - in: query
+          name: estado
+          required: false
+          schema: { type: string, enum: [activo, inactivo] }
+      responses:
+        '200':
+          description: Lista de servicios (puede ser vacía)
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Servicio' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+    post:
+      tags: [catalogo]
+      operationId: crearServicio
+      summary: Crea un servicio (requiere rol administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServicioCreacion' }
+      responses:
+        '201':
+          description: Servicio creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Servicio' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '409':
+          description: Nombre ya existente (CONFLICTO_NEGOCIO)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/servicios/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+    get:
+      tags: [catalogo]
+      operationId: obtenerServicio
+      summary: Obtiene un servicio por id (público, RF-027)
+      security: []
+      responses:
+        '200':
+          description: Servicio encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Servicio' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+    put:
+      tags: [catalogo]
+      operationId: actualizarServicio
+      summary: Reemplaza los datos de un servicio (requiere administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServicioCreacion' }
+      responses:
+        '200':
+          description: Servicio actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Servicio' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+    delete:
+      tags: [catalogo]
+      operationId: desactivarServicio
+      summary: Desactivación lógica (estado='inactivo'; requiere administrador)
+      responses:
+        '200':
+          description: Servicio desactivado (idempotente)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Servicio' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+  /api/v1/usuarios:
+    get:
+      tags: [identidad]
+      operationId: listarUsuarios
+      summary: Lista usuarios (requiere administrador, RF-003)
+      parameters:
+        - { in: query, name: rol, required: false, schema: { type: string, enum: [solicitante, profesional, administrador] } }
+        - { in: query, name: estado, required: false, schema: { type: string, enum: [activo, inactivo] } }
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/UsuarioSeguro' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+    post:
+      tags: [identidad]
+      operationId: crearUsuario
+      summary: Crea un usuario con rol (requiere administrador, RF-002/RF-004)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioCreacion' }
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsuarioSeguro' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '409':
+          description: Correo ya registrado (CONFLICTO_NEGOCIO)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/usuarios/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+    get:
+      tags: [identidad]
+      operationId: obtenerUsuario
+      summary: Obtiene un usuario por id (requiere administrador)
+      responses:
+        '200':
+          description: Usuario encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsuarioSeguro' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+    put:
+      tags: [identidad]
+      operationId: actualizarUsuario
+      summary: Reemplaza los datos de un usuario (requiere administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioCreacion' }
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsuarioSeguro' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+  /api/v1/profesionales:
+    get:
+      tags: [identidad]
+      operationId: listarProfesionales
+      summary: Lista profesionales con su usuario asociado (requiere administrador, RF-004)
+      parameters:
+        - { in: query, name: estado, required: false, schema: { type: string, enum: [activo, inactivo] } }
+      responses:
+        '200':
+          description: Lista de profesionales
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Profesional' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+    post:
+      tags: [identidad]
+      operationId: crearProfesional
+      summary: Crea un usuario con rol profesional y su perfil (requiere administrador, RF-004)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfesionalCreacion' }
+      responses:
+        '201':
+          description: Profesional creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profesional' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '409':
+          description: Correo ya registrado (CONFLICTO_NEGOCIO)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/profesionales/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+    get:
+      tags: [identidad]
+      operationId: obtenerProfesional
+      summary: Obtiene un profesional por id (requiere administrador)
+      responses:
+        '200':
+          description: Profesional encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profesional' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+    put:
+      tags: [identidad]
+      operationId: actualizarProfesional
+      summary: Reemplaza los datos de un profesional (requiere administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfesionalCreacion' }
+      responses:
+        '200':
+          description: Profesional actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profesional' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+  /api/v1/profesionales/{id}/servicios:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+    get:
+      tags: [identidad]
+      operationId: listarAsociacionesServicio
+      summary: Lista los servicios asociados a un profesional (requiere administrador, RF-006)
+      responses:
+        '200':
+          description: Lista de asociaciones
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/AsociacionServicio' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+    post:
+      tags: [identidad]
+      operationId: asociarServicio
+      summary: Asocia un servicio a un profesional (requiere administrador, RF-006)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [servicio_id]
+              properties:
+                servicio_id: { type: integer, minimum: 1 }
+                duracion_especifica: { type: [integer, 'null'], minimum: 1, maximum: 1440, description: Duración propia de la asociación; si se omite usa la del servicio }
+      responses:
+        '201':
+          description: Asociación creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AsociacionServicio' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+        '409':
+          description: Asociación ya existente o servicio inactivo (CONFLICTO_NEGOCIO)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/profesionales/{id}/servicios/{servicioId}:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+      - { in: path, name: servicioId, required: true, schema: { type: integer, minimum: 1 } }
+    put:
+      tags: [identidad]
+      operationId: actualizarAsociacionServicio
+      summary: Actualiza la asociación profesional-servicio (requiere administrador, RF-006)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                duracion_especifica: { type: [integer, 'null'], minimum: 1, maximum: 1440 }
+                estado: { type: string, enum: [activa, inactiva] }
+      responses:
+        '200':
+          description: Asociación actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AsociacionServicio' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+  /api/v1/profesionales/{id}/horarios:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+    get:
+      tags: [identidad]
+      operationId: listarHorarios
+      summary: Lista el horario habitual de un profesional (RF-007)
+      responses:
+        '200':
+          description: Lista de horarios
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Horario' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+    post:
+      tags: [identidad]
+      operationId: crearHorario
+      summary: Crea un horario habitual (requiere administrador, RF-007)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HorarioCreacion' }
+      responses:
+        '201':
+          description: Horario creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Horario' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+        '409':
+          description: Se solapa con un horario existente (CONFLICTO_NEGOCIO)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/profesionales/{id}/horarios/{horarioId}:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+      - { in: path, name: horarioId, required: true, schema: { type: integer, minimum: 1 } }
+    delete:
+      tags: [identidad]
+      operationId: eliminarHorario
+      summary: Elimina un horario habitual (requiere administrador, RF-007)
+      responses:
+        '200': { description: Horario eliminado }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+  /api/v1/profesionales/{id}/excepciones:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+    get:
+      tags: [identidad]
+      operationId: listarExcepciones
+      summary: Lista excepciones de disponibilidad (días no atendidos, RF-008)
+      responses:
+        '200':
+          description: Lista de excepciones
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Excepcion' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+    post:
+      tags: [identidad]
+      operationId: crearExcepcion
+      summary: Crea una excepción de disponibilidad (requiere administrador, RF-008)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExcepcionCreacion' }
+      responses:
+        '201':
+          description: Excepción creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Excepcion' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+        '409':
+          description: Excepción ya existente (CONFLICTO_NEGOCIO)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/profesionales/{id}/excepciones/{excepcionId}:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+      - { in: path, name: excepcionId, required: true, schema: { type: integer, minimum: 1 } }
+    delete:
+      tags: [identidad]
+      operationId: eliminarExcepcion
+      summary: Elimina una excepción de disponibilidad (requiere administrador, RF-008)
+      responses:
+        '200': { description: Excepción eliminada }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+  /api/v1/disponibilidad:
+    get:
+      tags: [agenda]
+      operationId: consultarDisponibilidad
+      summary: Intervalos libres de un profesional para un servicio y fecha (RF-009/RF-010/RF-011)
+      parameters:
+        - { in: query, name: profesional_id, required: true, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: servicio_id, required: true, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: fecha, required: true, schema: { type: string, format: date }, description: "Fecha local YYYY-MM-DD (La Paz, UTC-4)" }
+      responses:
+        '200':
+          description: Intervalos disponibles (puede ser vacío)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Disponibilidad' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+  /api/v1/citas:
+    post:
+      tags: [reservas]
+      operationId: crearCita
+      summary: Reserva una cita (RF-012/RF-013/RF-014/RF-015; sólo rol solicitante)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReservaCreacion' }
+      responses:
+        '201':
+          description: Cita creada en estado Confirmada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespuestaReserva' }
+        '200':
+          description: Reintento idéntico con la misma Idempotency-Key (replique=true, RNF-012)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespuestaReserva' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+        '409':
+          description: >
+            Intervalo ocupado (INTERVALO_OCUPADO), clave reutilizada con cuerpo
+            distinto (CONFLICTO_IDEMPOTENCIA), sin asociación activa
+            (CONFLICTO_NEGOCIO) o política de anticipación sin aprobar
+            (POLITICA_NO_CONFIGURADA, RF-025/RN-12)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    get:
+      tags: [reservas]
+      operationId: listarCitas
+      summary: Lista citas para gestión (administrador o profesional asignado, RF-016)
+      parameters:
+        - { in: query, name: estado, required: false, schema: { type: string, enum: [Confirmada, 'En atención', Atendida, Cancelada, 'No asistida'] } }
+        - { in: query, name: fecha, required: false, schema: { type: string, format: date } }
+        - { in: query, name: profesional_id, required: false, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Lista de citas enriquecidas con nombres y horas locales
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Cita' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+  /api/v1/citas/mias:
+    get:
+      tags: [reservas]
+      operationId: misCitas
+      summary: Citas del solicitante autenticado (RF-016)
+      parameters:
+        - { in: query, name: estado, required: false, schema: { type: string, enum: [Confirmada, 'En atención', Atendida, Cancelada, 'No asistida'] } }
+        - { in: query, name: fecha, required: false, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Citas propias enriquecidas
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Cita' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+  /api/v1/citas/{id}/reprogramar:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    put:
+      tags: [reservas]
+      operationId: reprogramarCita
+      summary: Reprograma una cita Confirmada dentro del plazo (RF-017, RN-13)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Reprogramacion' }
+      responses:
+        '200':
+          description: Cita reprogramada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespuestaReserva' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+        '409':
+          description: >
+            Estado que no admite reprogramación (TRANSICION_NO_PERMITIDA),
+            fuera del plazo de anticipación sin gestor (FUERA_DE_PLAZO),
+            intervalo ocupado (INTERVALO_OCUPADO) o clave reutilizada
+            (CONFLICTO_IDEMPOTENCIA)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/citas/{id}/cancelar:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    put:
+      tags: [reservas]
+      operationId: cancelarCita
+      summary: Cancela una cita Confirmada dentro del plazo, con justificación (RF-018/RF-019, RN-13)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Cancelacion' }
+      responses:
+        '200':
+          description: Cita cancelada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespuestaReserva' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+        '409':
+          description: >
+            Estado que no admite cancelación (TRANSICION_NO_PERMITIDA), fuera
+            del plazo de anticipación sin gestor (FUERA_DE_PLAZO) o clave
+            reutilizada (CONFLICTO_IDEMPOTENCIA)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/citas/{id}/estado:
+    parameters:
+      - $ref: '#/components/parameters/IdEntero'
+    put:
+      tags: [reservas]
+      operationId: cambiarEstadoCita
+      summary: >
+        Cambia el estado según la máquina de estados permitida (RF-020/RF-021,
+        RN-08; administrador o profesional asignado)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado: { type: string, enum: [Confirmada, 'En atención', Atendida, Cancelada, 'No asistida'] }
+      responses:
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cita' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+        '409':
+          description: Transición no permitida por la máquina de estados (TRANSICION_NO_PERMITIDA)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/notificaciones/mias:
+    get:
+      tags: [seguimiento]
+      operationId: notificacionesPropias
+      summary: Notificaciones internas del usuario autenticado (RF-024/RF-028)
+      responses:
+        '200':
+          description: Lista de notificaciones con instantánea de la cita
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Notificacion' } }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+  /api/v1/parametros:
+    get:
+      tags: [seguimiento]
+      operationId: listarParametros
+      summary: Lista los parámetros operativos y su estado de configuración (RF-025)
+      responses:
+        '200':
+          description: Parámetros operativos
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Parametro' } }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+  /api/v1/parametros/{clave}:
+    parameters:
+      - { in: path, name: clave, required: true, schema: { type: string }, description: "Clave del parámetro operativo" }
+    put:
+      tags: [seguimiento]
+      operationId: configurarParametro
+      summary: Configura un parámetro operativo (requiere administrador, RF-025)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [valor]
+              properties:
+                valor: { type: string, maxLength: 100 }
+                descripcion: { type: [string, 'null'], maxLength: 255 }
+      responses:
+        '200':
+          description: Parámetro configurado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Parametro' }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+        '404': { $ref: '#/components/responses/ErrorNoEncontrado' }
+  /api/v1/auditoria:
+    get:
+      tags: [seguimiento]
+      operationId: consultarAuditoria
+      summary: Auditoría de operaciones críticas (RF-026; requiere administrador)
+      parameters:
+        - { in: query, name: tipo, required: false, schema: { type: string, enum: [reserva, reprogramacion, cancelacion, cambio_estado] } }
+        - { in: query, name: cita_id, required: false, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: limite, required: false, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        '200':
+          description: Registros de auditoría, más recientes primero
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Auditoria' } }
+        '400': { $ref: '#/components/responses/ErrorValidacion' }
+        '401': { $ref: '#/components/responses/ErrorNoAutorizado' }
+        '403': { $ref: '#/components/responses/ErrorProhibido' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "Token opaco de sesión devuelto por POST /auth/login (Authorization: Bearer <token>)"
+  parameters:
+    IdEntero:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer, minimum: 1 }
+      description: Entero positivo
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128, pattern: '^[ -~]+$' }
+      description: >
+        Clave única por operación (RNF-012). 8 a 128 caracteres imprimibles.
+        Reutilizarla con el mismo cuerpo devuelve la respuesta original
+        (replique=true, HTTP 200); con un cuerpo distinto responde
+        409 CONFLICTO_IDEMPOTENCIA.
+  schemas:
+    CredencialesLogin:
+      type: object
+      required: [correo, contrasena]
+      properties:
+        correo: { type: string, format: email, maxLength: 254 }
+        contrasena: { type: string }
+    RegistroPublico:
+      type: object
+      required: [nombre_completo, correo, contrasena]
+      properties:
+        nombre_completo: { type: string, minLength: 1, maxLength: 120 }
+        correo: { type: string, format: email, maxLength: 254 }
+        contrasena: { type: string, minLength: 12, maxLength: 200, description: "RNF-029: mínimo 12 caracteres, sin reglas arbitrarias de composición" }
+    UsuarioSeguro:
+      type: object
+      required: [id, nombre_completo, correo, rol]
+      properties:
+        id: { type: integer }
+        nombre_completo: { type: string }
+        correo: { type: string }
+        rol: { type: string, enum: [solicitante, profesional, administrador] }
+        estado: { type: string, enum: [activo, inactivo] }
+    SesionLogin:
+      type: object
+      required: [token, usuario]
+      properties:
+        token: { type: string, description: Token opaco de sesión (nunca contiene datos del usuario) }
+        usuario: { $ref: '#/components/schemas/UsuarioSeguro' }
+    UsuarioCreacion:
+      type: object
+      required: [nombre_completo, correo, contrasena, rol]
+      properties:
+        nombre_completo: { type: string, minLength: 1, maxLength: 120 }
+        correo: { type: string, format: email, maxLength: 254 }
+        contrasena: { type: string, minLength: 12, maxLength: 200, description: "RNF-029: mínimo 12 caracteres, sin reglas arbitrarias de composición" }
+        rol: { type: string, enum: [solicitante, profesional, administrador] }
+        estado: { type: string, enum: [activo, inactivo], default: activo }
+    Servicio:
+      type: object
+      required: [id, nombre, descripcion, duracion_minutos, estado]
+      properties:
+        id: { type: integer }
+        nombre: { type: string, minLength: 1, maxLength: 100 }
+        descripcion: { type: [string, 'null'], maxLength: 500 }
+        duracion_minutos: { type: integer, minimum: 1, maximum: 1440 }
+        estado: { type: string, enum: [activo, inactivo] }
+    ServicioCreacion:
+      type: object
+      required: [nombre, duracion_minutos]
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 100 }
+        descripcion: { type: [string, 'null'], maxLength: 500, default: null }
+        duracion_minutos: { type: integer, minimum: 1, maximum: 1440 }
+        estado: { type: string, enum: [activo, inactivo], default: activo }
+    Profesional:
+      type: object
+      required: [id, usuario_id, datos_exhibicion]
+      properties:
+        id: { type: integer, description: Id del perfil profesional (referencia de cita.profesional_id) }
+        usuario_id: { type: integer }
+        nombre_completo: { type: string }
+        correo: { type: string }
+        datos_exhibicion: { type: [string, 'null'], maxLength: 255 }
+        estado: { type: string, enum: [activo, inactivo] }
+    ProfesionalCreacion:
+      type: object
+      required: [nombre_completo, correo, contrasena]
+      properties:
+        nombre_completo: { type: string, minLength: 1, maxLength: 120 }
+        correo: { type: string, format: email, maxLength: 254 }
+        contrasena: { type: string, minLength: 12, maxLength: 200, description: "RNF-029: mínimo 12 caracteres, sin reglas arbitrarias de composición" }
+        datos_exhibicion: { type: [string, 'null'], maxLength: 255 }
+    AsociacionServicio:
+      type: object
+      required: [profesional_id, servicio_id, estado]
+      properties:
+        profesional_id: { type: integer }
+        servicio_id: { type: integer }
+        duracion_especifica: { type: [integer, 'null'], minimum: 1, maximum: 1440 }
+        estado: { type: string, enum: [activa, inactiva] }
+        registrado_utc: { type: string, format: date-time }
+        baja_utc: { type: [string, 'null'], format: date-time }
+    Horario:
+      type: object
+      required: [id, profesional_id, dia_semana, hora_inicio, hora_fin]
+      properties:
+        id: { type: integer }
+        profesional_id: { type: integer }
+        dia_semana: { type: string, enum: [dom, lun, mar, mie, jue, vie, sab], description: "Día de la semana en La Paz (UTC-4)" }
+        hora_inicio: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: "HH:MM local" }
+        hora_fin: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: "HH:MM local" }
+    HorarioCreacion:
+      type: object
+      required: [dia_semana, hora_inicio, hora_fin]
+      properties:
+        dia_semana: { type: string, enum: [dom, lun, mar, mie, jue, vie, sab] }
+        hora_inicio: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        hora_fin: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+    Excepcion:
+      type: object
+      required: [id, profesional_id, fecha, motivo]
+      properties:
+        id: { type: integer }
+        profesional_id: { type: integer }
+        fecha: { type: string, format: date }
+        motivo: { type: [string, 'null'], maxLength: 255 }
+    ExcepcionCreacion:
+      type: object
+      required: [fecha]
+      properties:
+        fecha: { type: string, format: date }
+        motivo: { type: [string, 'null'], maxLength: 255 }
+    Disponibilidad:
+      type: object
+      required: [profesional_id, servicio_id, fecha, duracion_efectiva_min, intervalos]
+      properties:
+        profesional_id: { type: integer }
+        servicio_id: { type: integer }
+        fecha: { type: string, format: date }
+        duracion_efectiva_min: { type: integer, minimum: 1, description: Duración de la asociación o del servicio }
+        intervalos:
+          type: array
+          description: Inicios libres en intervalos de 15 min, hora local La Paz
+          items: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+    ReservaCreacion:
+      type: object
+      required: [servicio_id, profesional_id, fecha, hora_inicio]
+      properties:
+        servicio_id: { type: integer, minimum: 1 }
+        profesional_id: { type: integer, minimum: 1, description: Id del perfil profesional }
+        fecha: { type: string, format: date, description: Fecha local YYYY-MM-DD (La Paz) }
+        hora_inicio: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: Hora local de inicio }
+    RespuestaReserva:
+      type: object
+      required: [replique, cita]
+      properties:
+        replique: { type: boolean, description: true si la respuesta proviene del replique idempotente }
+        cita: { $ref: '#/components/schemas/Cita' }
+    Cita:
+      type: object
+      required: [id, solicitante_id, profesional_id, servicio_id, inicio_utc, fin_utc, estado]
+      properties:
+        id: { type: integer }
+        solicitante_id: { type: integer }
+        profesional_id: { type: integer }
+        servicio_id: { type: integer }
+        inicio_utc: { type: string, format: date-time }
+        fin_utc: { type: string, format: date-time }
+        duracion_efectiva_min: { type: integer }
+        estado: { type: string, enum: [Confirmada, 'En atención', Atendida, Cancelada, 'No asistida'] }
+        justificacion_cambio: { type: [string, 'null'] }
+        nombre_solicitante: { type: [string, 'null'] }
+        nombre_profesional: { type: [string, 'null'] }
+        inicio_local: { type: [string, 'null'], description: "Hora local La Paz (YYYY-MM-DD HH:mm)" }
+    Reprogramacion:
+      type: object
+      required: [fecha, hora_inicio, justificacion]
+      properties:
+        fecha: { type: string, format: date }
+        hora_inicio: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        justificacion: { type: string, minLength: 1, maxLength: 500 }
+    Cancelacion:
+      type: object
+      required: [justificacion]
+      properties:
+        justificacion: { type: string, minLength: 1, maxLength: 500 }
+    Notificacion:
+      type: object
+      required: [id, destinatario_id, cita_id, evento, generado_utc]
+      properties:
+        id: { type: integer }
+        destinatario_id: { type: integer }
+        cita_id: { type: integer }
+        evento: { type: string, enum: [confirmada, reprogramada, cancelada], description: Sólo estos eventos generan notificación }
+        generado_utc: { type: string, format: date-time }
+        instantanea: { type: object, description: Instantánea de la cita en el momento del evento }
+    Parametro:
+      type: object
+      required: [clave, valor, configurado]
+      properties:
+        clave: { type: string, enum: [anticipacion_reservar, anticipacion_reprogramar, anticipacion_cancelar] }
+        valor: { type: [string, 'null'], description: Valor en minutos; null si aún no fue aprobado }
+        descripcion: { type: [string, 'null'] }
+        configurado: { type: boolean, description: false mientras el valor no haya sido aprobado (RN-12) }
+    Auditoria:
+      type: object
+      required: [operacion_id, usuario_id, tipo_operacion, fecha_hora_utc, resultado]
+      properties:
+        operacion_id: { type: integer }
+        usuario_id: { type: integer }
+        cita_id: { type: [integer, 'null'] }
+        tipo_operacion: { type: string, enum: [reserva, reprogramacion, cancelacion, cambio_estado] }
+        fecha_hora_utc: { type: string, format: date-time }
+        resultado: { type: string, enum: [exito, rechazo] }
+        contexto: { type: [string, 'null'], description: "Contexto JSON, p. ej. clave de idempotencia o transición de estado" }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - NOT_FOUND
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - RATE_LIMITED
+                - DB_ERROR
+                - INTERNAL_ERROR
+                - CONFLICTO_NEGOCIO
+                - CONFLICTO_IDEMPOTENCIA
+                - INTERVALO_OCUPADO
+                - TRANSICION_NO_PERMITIDA
+                - FUERA_DE_PLAZO
+                - POLITICA_NO_CONFIGURADA
+            message: { type: string }
+            details: { type: object }
+  responses:
+    ErrorNoAutorizado:
+      description: Sesión ausente, inválida o expirada (401)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ErrorProhibido:
+      description: Rol insuficiente (403)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ErrorValidacion:
+      description: Datos, cabeceras o parámetros inválidos (400)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ErrorNoEncontrado:
+      description: Recurso inexistente (404)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ErrorInterno:
+      description: Error interno o de base de datos (500); sin fugas de SQL ni secretos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
