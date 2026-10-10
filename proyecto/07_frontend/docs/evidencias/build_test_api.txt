@@ -1,0 +1,29 @@
+== npm run build ==
+✓ 40 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                      0.60 kB │ gzip:  0.36 kB
+dist/assets/index-C4wmfeVm.css       8.77 kB │ gzip:  2.49 kB
+dist/assets/servicios-EXkkyQRF.js    1.11 kB │ gzip:  0.65 kB
+dist/assets/index-Cxm8qQWw.js      153.19 kB │ gzip: 49.15 kB
+✓ built in 3.23s
+
+== npm test ==
+  ---
+  duration_ms: 0.486676
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 158.958597
+
+== API via preview proxy (4173 -> 127.0.0.1:3001) ==
+{"status":"ok","version":"0.1.0","checks":{"db":"ok"}}
+[{"id":990011,"nombre":"Servicio Verificacion CP10","descripcion":"Fixture CP-FULL-10","duracion_minutos":30,"estado":"activo"}]
+== CORS (Origin desde 5173) ==
+Sin cabeceras CORS en el backend: por eso la landing usa el proxy de Vite (mismo origen).

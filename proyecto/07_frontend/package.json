@@ -1,0 +1,21 @@
+{
+  "name": "sistema-citas-landing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Landing page responsive del Sistema Web de Gestión de Citas y Atención Virtual (RF-027 / CA-011)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}
